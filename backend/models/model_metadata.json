@@ -1,0 +1,32 @@
+{
+  "features": [
+    "duration",
+    "src_bytes",
+    "dst_bytes",
+    "count",
+    "srv_count",
+    "serror_rate",
+    "srv_serror_rate",
+    "rerror_rate",
+    "same_srv_rate",
+    "diff_srv_rate",
+    "dst_host_count",
+    "dst_host_srv_count",
+    "dst_host_same_srv_rate",
+    "dst_host_diff_srv_rate",
+    "dst_host_serror_rate",
+    "hour_of_day",
+    "failed_logins",
+    "is_root_shell",
+    "num_file_creations",
+    "num_access_files"
+  ],
+  "label_map": {
+    "0": "Normal",
+    "1": "Probe",
+    "2": "DoS",
+    "3": "R2L",
+    "4": "U2R"
+  },
+  "n_features": 20
+}

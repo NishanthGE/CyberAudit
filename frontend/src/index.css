@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: #0a0a0f;
+    color: #e2e8f0;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a0f;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e2040;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00f5ff40;
+  }
+}
+
+@layer components {
+  /* ── Glassmorphism Card ─────────────────────────────────────────────────── */
+  .glass-card {
+    @apply relative rounded-2xl border border-cyber-border;
+    background: linear-gradient(135deg, rgba(17,17,40,0.9) 0%, rgba(13,13,24,0.95) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(0,245,255,0.03) 0%, rgba(139,92,246,0.03) 100%);
+    pointer-events: none;
+  }
+
+  /* ── Neon Border Variants ───────────────────────────────────────────────── */
+  .border-glow-cyan {
+    border-color: rgba(0,245,255,0.4);
+    box-shadow: 0 0 20px rgba(0,245,255,0.15), inset 0 0 20px rgba(0,245,255,0.03);
+  }
+  .border-glow-purple {
+    border-color: rgba(139,92,246,0.4);
+    box-shadow: 0 0 20px rgba(139,92,246,0.15), inset 0 0 20px rgba(139,92,246,0.03);
+  }
+  .border-glow-red {
+    border-color: rgba(255,0,60,0.5);
+    box-shadow: 0 0 25px rgba(255,0,60,0.2), inset 0 0 20px rgba(255,0,60,0.05);
+  }
+
+  /* ── Neon Text ──────────────────────────────────────────────────────────── */
+  .text-glow-cyan {
+    color: #00f5ff;
+    text-shadow: 0 0 10px rgba(0,245,255,0.7), 0 0 30px rgba(0,245,255,0.3);
+  }
+  .text-glow-purple {
+    color: #8b5cf6;
+    text-shadow: 0 0 10px rgba(139,92,246,0.7), 0 0 30px rgba(139,92,246,0.3);
+  }
+  .text-glow-red {
+    color: #ff003c;
+    text-shadow: 0 0 10px rgba(255,0,60,0.8), 0 0 30px rgba(255,0,60,0.4);
+  }
+
+  /* ── Cyber Button ───────────────────────────────────────────────────────── */
+  .btn-cyber {
+    @apply relative px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 overflow-hidden;
+    @apply border border-cyber-cyan/40 text-cyber-cyan;
+    @apply hover:border-cyber-cyan hover:shadow-cyber-cyan;
+    background: rgba(0,245,255,0.05);
+  }
+
+  .btn-cyber:hover {
+    background: rgba(0,245,255,0.1);
+    transform: translateY(-1px);
+  }
+
+  .btn-cyber-purple {
+    @apply relative px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300;
+    @apply border border-cyber-purple/40 text-cyber-purple;
+    @apply hover:border-cyber-purple hover:shadow-cyber-purple;
+    background: rgba(139,92,246,0.05);
+  }
+  .btn-cyber-purple:hover {
+    background: rgba(139,92,246,0.12);
+    transform: translateY(-1px);
+  }
+
+  /* ── Severity Badge ───────────────────────────────────────────────────── */
+  .badge-critical { @apply bg-red-500/15 text-red-400 border border-red-500/40 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider; }
+  .badge-high     { @apply bg-orange-500/15 text-orange-400 border border-orange-500/40 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider; }
+  .badge-medium   { @apply bg-yellow-500/15 text-yellow-400 border border-yellow-500/40 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider; }
+  .badge-low      { @apply bg-green-500/15 text-green-400 border border-green-500/40 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider; }
+  .badge-info     { @apply bg-blue-500/15 text-blue-400 border border-blue-500/40 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider; }
+
+  /* ── Log Entry ─────────────────────────────────────────────────────────── */
+  .log-entry {
+    @apply glass-card p-4 mb-3 transition-all duration-200 cursor-default;
+  }
+  .log-entry:hover {
+    border-color: rgba(0,245,255,0.2);
+    transform: translateX(2px);
+  }
+
+  /* ── Input Cyber ───────────────────────────────────────────────────────── */
+  .input-cyber {
+    @apply w-full px-4 py-3 rounded-xl font-mono text-sm text-cyber-text;
+    @apply border border-cyber-border bg-cyber-surface/50;
+    @apply focus:outline-none focus:border-cyber-cyan/50 focus:shadow-cyber-cyan;
+    @apply transition-all duration-200 placeholder-cyber-textDim;
+  }
+
+  /* ── Stats Card ────────────────────────────────────────────────────────── */
+  .stat-card {
+    @apply glass-card p-5 flex flex-col gap-2;
+  }
+
+  /* ── Scan line animation ───────────────────────────────────────────────── */
+  .scanline {
+    background: linear-gradient(
+      transparent 0%,
+      rgba(0,245,255,0.03) 50%,
+      transparent 100%
+    );
+    background-size: 100% 4px;
+    animation: scan 8s linear infinite;
+  }
+
+  /* ── Cyber divider ─────────────────────────────────────────────────────── */
+  .cyber-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,245,255,0.3), transparent);
+  }
+}
+
+@layer utilities {
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  
+  /* Gradient text */
+  .gradient-text-cyan {
+    background: linear-gradient(135deg, #00f5ff, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-red {
+    background: linear-gradient(135deg, #ff003c, #ff6b00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ── Recharts overrides ────────────────────────────────────────────────────── */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(30,32,64,0.8) !important;
+}
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: rgba(13,13,24,0.95) !important;
+  border: 1px solid rgba(0,245,255,0.3) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 0 20px rgba(0,245,255,0.15) !important;
+  backdrop-filter: blur(16px) !important;
+}
+.recharts-default-tooltip .recharts-tooltip-label {
+  color: #00f5ff !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12px !important;
+}

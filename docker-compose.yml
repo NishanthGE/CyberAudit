@@ -1,0 +1,105 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# CyberAudit — Docker Compose
+# Single command: docker-compose up --build
+# Services: mongo | hardhat | backend | frontend (nginx)
+# ══════════════════════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: cyberaudit-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Hardhat Local Blockchain ──────────────────────────────────────────────────
+  hardhat:
+    build:
+      context: .
+      dockerfile: hardhat/Dockerfile
+    container_name: cyberaudit-hardhat
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+    volumes:
+      - contract_data:/shared   # contract address written here after deploy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /shared/contract_address.txt"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cyberaudit-backend
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      hardhat:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: audit_log_db
+      HARDHAT_RPC_URL: http://hardhat:8545
+      # CONTRACT_ADDRESS is read dynamically from /shared/contract_address.txt
+      # by the entrypoint script before uvicorn starts
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      ALERT_MIN_SEVERITY: ${ALERT_MIN_SEVERITY:-HIGH}
+      ALERT_RISK_THRESHOLD: ${ALERT_RISK_THRESHOLD:-75}
+    volumes:
+      - contract_data:/shared    # read contract address from hardhat
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ── React Frontend (Nginx) ─────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cyberaudit-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+
+# ── Volumes ─────────────────────────────────────────────────────────────────────
+volumes:
+  mongo_data:        # MongoDB data persists across restarts
+  contract_data:     # Hardhat contract address shared with backend
