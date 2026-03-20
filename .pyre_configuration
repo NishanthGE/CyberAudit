@@ -1,0 +1,20 @@
+{
+  "source_directories": [
+    {
+      "import_root": "e:/Blockchain project/backend",
+      "source": "."
+    }
+  ],
+  "venv": "e:/Blockchain project/.venv",
+  "venv_base_python": "e:/Blockchain project/.venv/Scripts/python.exe",
+  "python_version": "3.12",
+  "site_package_search_strategy": "all",
+  "exclude": [
+    ".*/node_modules/.*",
+    ".*/.venv/.*",
+    ".*/hardhat/.*",
+    ".*/frontend/.*",
+    ".*/cache/.*",
+    "c:/tmp/.*"
+  ]
+}

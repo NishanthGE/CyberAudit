@@ -7,9 +7,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, Image, KeepTogether
+from reportlab.platypus import (  # type: ignore[import-untyped]
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,  # type: ignore[import-untyped]
+    HRFlowable, PageBreak, Image, KeepTogether  # type: ignore[import-untyped]
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import os, glob

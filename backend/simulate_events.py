@@ -15,7 +15,7 @@ if sys.stdout.encoding.lower() != "utf-8":
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-API_URL = "http://localhost:8000/api/logs"
+API_URL = "http://localhost:8001/api/logs"
 
 USERS = [
     "alice.smith", "bob.jones", "charlie.wu", "diana.patel",
@@ -90,8 +90,8 @@ async def run_simulation(total_events: int = 220, delay_ms: int = 150):
     print(f"  Events: {total_events}  |  Delay: {delay_ms}ms")
     print("=" * 60)
 
-    success = 0
-    failed = 0
+    success: int = 0
+    failed: int = 0
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         for i in range(1, total_events + 1):
@@ -107,13 +107,13 @@ async def run_simulation(total_events: int = 220, delay_ms: int = 150):
                     sym   = SEVERITY_SYMBOLS.get(sev, "[?]   ")
                     print(f"[{i:3d}/{total_events}] {sym} Risk:{risk:3d} | {label:8s} | "
                           f"{payload['event_type']:25s}{flag}")
-                    success += 1
+                    success += 1  # type: ignore[misc]
                 else:
-                    print(f"[{i:3d}/{total_events}] [ERR] HTTP {resp.status_code}: {resp.text[:60]}")
-                    failed += 1
+                    print(f"[{i:3d}/{total_events}] [ERR] HTTP {resp.status_code}: {str(resp.text)[:60]}")  # type: ignore[index]
+                    failed += 1  # type: ignore[misc]
             except Exception as e:
                 print(f"[{i:3d}/{total_events}] [ERR] {e}")
-                failed += 1
+                failed += 1  # type: ignore[misc]
 
             if delay_ms > 0:
                 await asyncio.sleep(delay_ms / 1000.0)

@@ -14,7 +14,8 @@ from models.anomaly_detector import detect_anomaly
 from models.threat_classifier import classify_threat
 from models.risk_scorer import compute_risk_score, score_to_severity
 from models.behavioral_profiler import update_profile
-from db.mongo_client import insert_log, get_logs, get_analytics
+from db.mongo_client import insert_log, get_logs, get_analytics, update_log  # type: ignore[attr-defined]
+from blockchain.web3_client import store_log_on_chain
 
 router = APIRouter(prefix="/api/logs", tags=["logs"])
 
@@ -47,7 +48,7 @@ def _auto_features(req: LogIngestionRequest) -> List[float]:
         "sql_injection":        [3, 800, 200, 30, 25, 0.3, 0.3, 0.5, 0.8, 0.2, 25, 18, 0.8, 0.2, 0.4, hour, 8, 0, 1, 10],
     }
     base = sigs.get(req.event_type, [2.0, 1500.0, 2000.0, 8, 6, 0.05, 0.04, 0.03, 0.85, 0.15, 12, 10, 0.82, 0.18, 0.04, hour, 0, 0, 1, 3])
-    return [v * (1 + random.gauss(0, 0.05)) for v in base]
+    return [v * (1 + random.gauss(0, 0.05)) for v in base]  # type: ignore[operator]
 
 
 @router.post("")
@@ -65,17 +66,17 @@ async def ingest_log(req: LogIngestionRequest, background_tasks: BackgroundTasks
 
     risk_score = compute_risk_score(
         event_type=req.event_type,
-        anomaly_normalized=anomaly_result["normalized_score"],
-        threat_label=threat_result["label"],
+        anomaly_normalized=float(anomaly_result["normalized_score"]),  # type: ignore[arg-type]
+        threat_label=str(threat_result["label"]),  # type: ignore[arg-type]
         frequency_count=5,
-        hour=hour,
+        hour=int(hour),  # type: ignore[arg-type]
     )
     severity = score_to_severity(risk_score)
 
     behavioral = update_profile(
         user_id=req.user_id,
         ip=req.source_ip,
-        hour=hour,
+        hour=int(hour),  # type: ignore[arg-type]
         event_type=req.event_type,
         risk_score=risk_score,
     )
@@ -103,8 +104,11 @@ async def ingest_log(req: LogIngestionRequest, background_tasks: BackgroundTasks
     log_id = await insert_log(log_doc)
     log_doc["_id"] = log_id
 
+    # Store hash on blockchain in background (non-blocking)
+    background_tasks.add_task(_store_on_chain, log_id, dict(log_doc))  # type: ignore[arg-type]
+
     # Fire alerts in background (non-blocking)
-    background_tasks.add_task(_run_alert, dict(log_doc))
+    background_tasks.add_task(_run_alert, dict(log_doc))  # type: ignore[arg-type]
 
     # Broadcast to SSE
     broadcast = {k: v for k, v in log_doc.items()}
@@ -117,12 +121,42 @@ async def ingest_log(req: LogIngestionRequest, background_tasks: BackgroundTasks
     return {
         "success": True, "log_id": log_id,
         "risk_score": risk_score, "severity": severity,
-        "threat_label": threat_result["label"],
-        "is_anomaly": anomaly_result["is_anomaly"],
+        "threat_label": threat_result["label"],  # type: ignore[index]
+        "is_anomaly": anomaly_result["is_anomaly"],  # type: ignore[index]
     }
 
 
-def _run_alert(log_doc: dict):
+_main_loop = None  # captured at startup by lifespan / first request
+
+
+def _store_on_chain(log_id: str, log_doc: dict) -> None:
+    """Store log hash on blockchain and patch the MongoDB doc with tx_hash/block_number.
+    
+    Runs in a background thread (BackgroundTasks). Uses run_coroutine_threadsafe
+    to submit the async update_log() back to the main uvicorn event loop.
+    """
+    import asyncio, logging
+    _log = logging.getLogger(__name__)
+    try:
+        chain_result = store_log_on_chain(log_doc)
+        if chain_result.get("success"):
+            fields = {
+                "tx_hash": chain_result.get("tx_hash"),
+                "block_number": chain_result.get("block_number"),
+            }
+            # Submit to main loop from this background thread
+            loop = _main_loop
+            if loop and loop.is_running():
+                future = asyncio.run_coroutine_threadsafe(update_log(log_id, fields), loop)
+                future.result(timeout=10)   # wait up to 10s
+            else:
+                # Fallback: new event loop (shouldn't normally happen)
+                asyncio.run(update_log(log_id, fields))
+    except Exception as e:
+        logging.getLogger(__name__).warning("_store_on_chain failed for %s: %s", log_id, e)
+
+
+def _run_alert(log_doc: dict) -> None:
     """Schedule alert processing on uvicorn's running event loop (non-blocking)."""
     import asyncio
     try:

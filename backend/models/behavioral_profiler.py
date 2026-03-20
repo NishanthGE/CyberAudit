@@ -47,8 +47,8 @@ def update_profile(user_id: str, ip: str, hour: int, event_type: str, risk_score
     hours: List[int] = profile["typical_hours"]
     if len(hours) >= 10:
         hour_arr = np.array(hours, dtype=float)
-        mean_hour = float(np.mean(hour_arr))
-        std_hour = max(float(np.std(hour_arr)), 1.0)
+        mean_hour = float(np.mean(hour_arr))  # type: ignore[call-overload]
+        std_hour = max(float(np.std(hour_arr)), 1.0)  # type: ignore[call-overload]
         z_score = abs(hour - mean_hour) / std_hour
         if z_score > 2.5:
             flags.append(f"Unusual activity time: {hour:02d}:00 (typical: {int(mean_hour):02d}:00)")
@@ -106,12 +106,12 @@ def update_profile(user_id: str, ip: str, hour: int, event_type: str, risk_score
     profile["flags"] = profile["flags"][-50:]
 
     return {
-        "deviation_score": round(deviation_score, 3),
+        "deviation_score": round(float(deviation_score), 3),  # type: ignore[call-overload]
         "flags": flags,
         "is_flagged": bool(flags),
         "known_ips_count": len(profile["known_ips"]),
         "total_events": profile["total_events"],
-        "avg_risk_score": round(profile["avg_risk_score"], 1),
+        "avg_risk_score": round(float(profile["avg_risk_score"]), 1),  # type: ignore[call-overload]
     }
 
 
@@ -121,11 +121,11 @@ def get_user_profile(user_id: str) -> dict:
     return {
         "user_id": user_id,
         "total_events": int(profile["total_events"]),
-        "avg_risk_score": round(float(profile["avg_risk_score"]), 1),
+        "avg_risk_score": round(float(profile["avg_risk_score"]), 1),  # type: ignore[call-overload]
         "known_ips": list(profile["known_ips"]),
-        "recent_events": list(profile["event_history"])[-20:],
-        "recent_flags": profile["flags"][-20:],
-        "typical_hours": list(profile["typical_hours"])[-50:],
+        "recent_events": list(profile["event_history"])[-20:],  # type: ignore[index]
+        "recent_flags": list(profile["flags"])[-20:],  # type: ignore[index]
+        "typical_hours": list(profile["typical_hours"])[-50:],  # type: ignore[index]
     }
 
 

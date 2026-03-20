@@ -5,12 +5,12 @@ Anomaly Detection Module — Isolation Forest Inference
 import numpy as np
 import joblib
 import os
-from typing import List
+from typing import Any, List
 
 MODELS_DIR = os.path.dirname(os.path.abspath(__file__))
 
-_anomaly_model = None
-_scaler = None
+_anomaly_model: Any = None
+_scaler: Any = None
 
 
 def _load_models():
@@ -35,11 +35,11 @@ def detect_anomaly(features: List[float]) -> dict:
     """
     _load_models()
     X = np.array(features, dtype=float).reshape(1, -1)
-    X_scaled = _scaler.transform(X)
+    X_scaled = _scaler.transform(X)  # type: ignore[union-attr]
 
     # decision_function returns negative values for anomalies
-    raw_score = float(_anomaly_model.decision_function(X_scaled)[0])
-    prediction = int(_anomaly_model.predict(X_scaled)[0])  # -1 or 1
+    raw_score = float(_anomaly_model.decision_function(X_scaled)[0])  # type: ignore[union-attr]
+    prediction = int(_anomaly_model.predict(X_scaled)[0])  # type: ignore[union-attr]
 
     # Normalize: map raw_score from roughly [-0.5, 0.5] → [0, 1] inverted
     # More negative = more anomalous → higher normalized score

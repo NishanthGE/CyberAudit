@@ -236,7 +236,7 @@ def train_models():
     
     # Evaluate on full dataset
     predictions = iso_forest.predict(X_scaled)
-    anomaly_rate = (predictions == -1).mean()
+    anomaly_rate = float((predictions == -1).mean())
     print(f"      Saved: anomaly_model.pkl")
     print(f"      Anomaly rate on full dataset: {anomaly_rate:.2%}")
 

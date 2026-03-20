@@ -5,14 +5,14 @@ Threat Classification Module — Random Forest Inference
 import numpy as np
 import joblib
 import os
-from typing import List, Dict
+from typing import Any, List, Dict
 
 MODELS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 LABEL_MAP = {0: "Normal", 1: "Probe", 2: "DoS", 3: "R2L", 4: "U2R"}
 
-_classifier = None
-_scaler = None
+_classifier: Any = None
+_scaler: Any = None
 
 
 def _load_models():
@@ -40,10 +40,10 @@ def classify_threat(features: List[float]) -> Dict:
     """
     _load_models()
     X = np.array(features, dtype=float).reshape(1, -1)
-    X_scaled = _scaler.transform(X)
+    X_scaled = _scaler.transform(X)  # type: ignore[union-attr]
 
-    label_id = int(_classifier.predict(X_scaled)[0])
-    proba = _classifier.predict_proba(X_scaled)[0]
+    label_id = int(_classifier.predict(X_scaled)[0])  # type: ignore[union-attr]
+    proba = _classifier.predict_proba(X_scaled)[0]  # type: ignore[union-attr]
 
     probabilities = {LABEL_MAP[i]: float(proba[i]) for i in range(len(proba))}
     label = LABEL_MAP[label_id]

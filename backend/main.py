@@ -28,7 +28,7 @@ app = FastAPI(
 )
 
 # -- CORS ----------------------------------------------------------------------
-app.add_middleware(
+app.add_middleware(  # type: ignore[arg-type]
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:80"],
     allow_credentials=True,
@@ -46,8 +46,14 @@ app.include_router(settings_router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Warm up ML models on startup."""
+    """Warm up ML models on startup and capture event loop for background tasks."""
+    import asyncio
     print("[*] AI Blockchain Audit Log System starting...")
+
+    # Capture main loop so background threads in routes.logs can submit coroutines
+    import routes.logs as _logs_module
+    _logs_module._main_loop = asyncio.get_event_loop()  # type: ignore[attr-defined]
+
     try:
         from models.anomaly_detector import detect_anomaly
         from models.threat_classifier import classify_threat

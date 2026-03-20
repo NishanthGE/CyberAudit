@@ -26,6 +26,7 @@ CyberAudit is a full-stack cybersecurity platform that does five things:
 | 🔔 **Real-time Alert System** | Email + Slack alerts for critical events based on 5 configurable trigger rules |
 | 🐳 **Docker Support** | Full containerization — run everything with `docker-compose up --build` |
 | ⚙️ **Settings Page** | Configure alert thresholds, email, Slack from the dashboard UI |
+| ✅ **Blockchain Verifier Fixed** | End-to-end VERIFIED status — every ingested log gets a real `tx_hash` and `block_number` stored on-chain |
 
 ---
 
@@ -42,11 +43,12 @@ Cybersecurity Event (POST /api/logs)
   │  3. Risk Scorer         → Score 0–100           │
   │  4. Behavioral Profiler → User deviation        │
   │  5. Alert Engine        → Email / Slack notify  │
+  │  6. Blockchain Writer   → tx_hash + block saved │
   └─────────────────────────────────────────────────┘
        │                    │
        ▼                    ▼
   MongoDB               Hardhat Ethereum
-  (full log)            (SHA-256 hash only)
+  (full log + tx_hash)  (SHA-256 canonical hash)
        │
        ▼
   React Frontend (SSE real-time stream)
@@ -60,7 +62,7 @@ Cybersecurity Event (POST /api/logs)
 ## Tech Stack
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
+|-------|-----------|---------| 
 | Smart Contract | Solidity + Hardhat | Immutable hash storage on local Ethereum |
 | Backend | Python FastAPI | Async API, ML pipeline, alert engine |
 | AI/ML | Scikit-learn | Isolation Forest + Random Forest |
@@ -70,16 +72,17 @@ Cybersecurity Event (POST /api/logs)
 | Styling | Tailwind CSS + Framer Motion | Dark cyber theme + animations |
 | Alerts | Gmail SMTP + Slack Webhooks | Real-time security notifications |
 | Container | Docker + Docker Compose | One-command deployment |
+| Web3 | web3.py v7.x | Ethereum interaction (Python 3.12 compatible) |
 
 ---
 
 ## Dashboard Pages
 
 | Page | URL | What It Shows |
-|------|-----|--------------|
+|------|-----|--------------| 
 | **Live Threat Feed** | `/` | Real-time event stream. Stats: total, high severity, anomalies, avg risk. 🤖 Explain button on HIGH/CRITICAL |
 | **AI Analytics** | `/analytics` | Threat distribution pie, risk timeline, activity heatmap, top IPs/users |
-| **Blockchain Verifier** | `/verify` | Enter Log ID → VERIFIED or TAMPERED comparison |
+| **Blockchain Verifier** | `/verify` | Enter Log ID → ✅ VERIFIED or ⚠️ TAMPERED comparison |
 | **Behavioral Profiler** | `/profile` | Per-user risk timeline, known IPs, behavioral flags |
 | **Forensic Report** | `/forensics` | Filter by severity/threat/user → Export PDF |
 | **Settings** | `/settings` | Configure alerts — email, Slack, thresholds, alert history |
@@ -90,21 +93,35 @@ Cybersecurity Event (POST /api/logs)
 
 Open **3 CMD windows**:
 
-### Terminal 1 — Backend
+### Terminal 1 — Hardhat Blockchain Node
+```cmd
+cd "e:\Blockchain project"
+npx hardhat node
+```
+Wait for: `Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/`
+
+### Terminal 2 — Deploy Smart Contract (first time only)
+```cmd
+cd "e:\Blockchain project"
+npx hardhat run scripts/deploy.js --network localhost
+```
+Wait for: `AuditLog deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3`
+
+### Terminal 3 — Backend
 ```cmd
 cd "e:\Blockchain project\backend"
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --port 8001
 ```
-Wait for: `Application startup complete.`
+Wait for: `[OK] Blockchain node connected` and `Application startup complete.`
 
-### Terminal 2 — Frontend
+### Terminal 4 — Frontend
 ```cmd
 cd "e:\Blockchain project\frontend"
 npm run dev
 ```
 Wait for: `Local: http://localhost:5173/`
 
-### Terminal 3 — Seed Data (first time only)
+### Terminal 5 — Seed Data (first time only)
 ```cmd
 cd "e:\Blockchain project\backend"
 python simulate_events.py
@@ -117,6 +134,8 @@ http://localhost:5173
 ```
 
 > **MongoDB** runs as a Windows service automatically — no separate command needed.
+> 
+> ⚠️ **Port Note:** The backend runs on **port 8001** (port 8000 is reserved by Windows Hyper-V on some machines). The Vite frontend proxy is already configured to target `http://localhost:8001`.
 
 ---
 
@@ -136,6 +155,20 @@ SMTP_USER=your@gmail.com
 SMTP_PASSWORD=xxxx xxxx xxxx xxxx
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ```
+
+---
+
+## Blockchain Verifier
+
+Every log ingested through `/api/logs` automatically:
+1. Gets its SHA-256 hash computed from **canonical core fields** (user_id, source_ip, event_type, description, hour, threat_label, threat_confidence, is_anomaly, anomaly_score, risk_score, severity)
+2. Stores the hash on-chain via `storeLog(logId, logHash, ...)` — the MongoDB ObjectId is used as the on-chain key
+3. Updates the MongoDB document with the real `tx_hash` and `block_number`
+
+**To verify a log:**
+1. Go to **Forensic Report** page → copy any Log ObjectId
+2. Go to **Blockchain Verifier** → paste the ID → click Verify
+3. The system re-hashes the current MongoDB data and compares against the on-chain hash → ✅ **VERIFIED**
 
 ---
 
@@ -164,7 +197,7 @@ ANTHROPIC_API_KEY=sk-ant-...   # from console.anthropic.com
 
 ### Trigger Rules
 | Rule | Condition |
-|------|-----------|
+|------|-----------| 
 | Severity | `severity ≥ MIN_SEVERITY` |
 | Risk Score | `risk_score > RISK_THRESHOLD` |
 | AI Anomaly | `is_anomaly=true` + MEDIUM+ severity |
@@ -201,7 +234,7 @@ HARDHAT_RPC_URL=http://127.0.0.1:8545
 CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=audit_log_db
-BACKEND_PORT=8000
+BACKEND_PORT=8001
 
 # LLM (optional)
 ANTHROPIC_API_KEY=your_key_here
@@ -226,17 +259,17 @@ ALERT_RISK_THRESHOLD=75
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/logs` | Ingest security event (runs full ML pipeline) |
+| `POST` | `/api/logs` | Ingest security event (runs full ML pipeline + blockchain write) |
 | `GET` | `/api/logs` | List logs with filters |
 | `GET` | `/api/logs/stream` | SSE real-time event stream |
 | `GET` | `/api/logs/analytics` | Aggregated analytics for charts |
-| `GET` | `/api/logs/{id}/explain` | **[NEW]** LLM threat explanation with MITRE mapping |
-| `GET` | `/api/verify/{log_id}` | Verify log integrity vs blockchain hash |
+| `GET` | `/api/logs/{id}/explain` | LLM threat explanation with MITRE mapping |
+| `GET` | `/api/verify/{log_id}` | Verify log integrity vs blockchain hash → VERIFIED/TAMPERED |
 | `GET` | `/api/profile` | List all user behavioral profiles |
 | `GET` | `/api/profile/{user_id}` | Get user's behavioral analysis |
-| `GET` | `/api/settings` | **[NEW]** Get alert configuration |
-| `POST` | `/api/settings` | **[NEW]** Save alert configuration |
-| `GET` | `/api/alerts/history` | **[NEW]** Alert history (last 20) |
+| `GET` | `/api/settings` | Get alert configuration |
+| `POST` | `/api/settings` | Save alert configuration |
+| `GET` | `/api/alerts/history` | Alert history (last 20) |
 | `GET` | `/health` | Backend health check |
 | `GET` | `/docs` | Interactive Swagger API explorer |
 
@@ -246,38 +279,47 @@ ALERT_RISK_THRESHOLD=75
 
 ```
 Blockchain project/
-├── docker-compose.yml        # [NEW] One-command Docker deployment
+├── docker-compose.yml        # One-command Docker deployment
+├── README.md                 # This file
 ├── backend/
-│   ├── Dockerfile            # [NEW] Python 3.11-slim container
-│   ├── docker-entrypoint.sh  # [NEW] Auto-trains ML models on start
+│   ├── Dockerfile            # Python 3.12-slim container
+│   ├── docker-entrypoint.sh  # Auto-trains ML models on start
 │   ├── main.py               # FastAPI app entry point
 │   ├── simulate_events.py    # Sends 220 events through ML pipeline
 │   ├── clear_db.py           # Clear MongoDB logs
-│   ├── .env                  # Environment variables
-│   ├── alerts/               # [NEW]
+│   ├── .env                  # Environment variables (BACKEND_PORT=8001)
+│   ├── deployment.json       # Auto-generated after deploy script
+│   ├── alerts/
 │   │   ├── alert_engine.py   # 5 trigger rules + 10-min cooldown
 │   │   ├── email_notifier.py # HTML email via Gmail SMTP
 │   │   └── slack_notifier.py # Slack Block Kit messages
+│   ├── blockchain/
+│   │   └── web3_client.py    # web3.py v7 client — store/verify on Hardhat
 │   ├── models/               # ML model inference
 │   ├── routes/
-│   │   ├── logs.py           # POST/GET /api/logs + alert hook
-│   │   ├── explain.py        # [NEW] GET /api/logs/{id}/explain
-│   │   ├── settings.py       # [NEW] GET/POST /api/settings
-│   │   ├── verify.py         # Blockchain integrity check
+│   │   ├── logs.py           # POST/GET /api/logs + blockchain + alert hook
+│   │   ├── explain.py        # GET /api/logs/{id}/explain
+│   │   ├── settings.py       # GET/POST /api/settings
+│   │   ├── verify.py         # Blockchain integrity check (VERIFIED/TAMPERED)
 │   │   └── profile.py        # Behavioral profiler endpoints
-│   └── db/mongo_client.py    # MongoDB client
+│   └── db/mongo_client.py    # MongoDB async client (Motor)
 ├── frontend/
-│   ├── Dockerfile            # [NEW] Multi-stage React → Nginx
-│   ├── nginx.conf            # [NEW] SPA + /api proxy config
+│   ├── Dockerfile            # Multi-stage React → Nginx
+│   ├── nginx.conf            # SPA + /api proxy config
+│   ├── vite.config.js        # Proxy → http://localhost:8001
 │   └── src/
 │       ├── pages/
-│       │   ├── Dashboard.jsx     # [UPDATED] Explain button
-│       │   ├── Settings.jsx      # [NEW] Alert config + history
-│       │   └── ForensicReport.jsx# [UPDATED] Explain button
+│       │   ├── Dashboard.jsx
+│       │   ├── Analytics.jsx
+│       │   ├── BlockchainVerifier.jsx
+│       │   ├── BehavioralProfiler.jsx
+│       │   ├── ForensicReport.jsx
+│       │   └── Settings.jsx
 │       └── components/
-│           └── ExplainModal.jsx  # [NEW] AI analysis modal
+│           └── ExplainModal.jsx
 ├── contracts/AuditLog.sol    # Ethereum smart contract
-└── hardhat/Dockerfile        # [NEW] Local blockchain container
+│   └── storeLog(logId, logHash, riskScore, threatLabel, eventType, userId)
+└── artifacts/                # Auto-generated by Hardhat compile
 ```
 
 ---
@@ -287,7 +329,13 @@ Blockchain project/
 | Problem | Fix |
 |---------|-----|
 | `&&` not working in PowerShell | Use `;` instead: `python clear_db.py ; python simulate_events.py` |
-| Port 8000 already in use | `netstat -ano \| findstr :8000` → `taskkill /f /pid <PID>` |
+| Port 8001 already in use | `Get-NetTCPConnection -LocalPort 8001 \| Select OwningProcess` → `Stop-Process -Id <PID>` |
+| Port 8000 can't bind (error 10048/13) | Windows Hyper-V reserves port 8000 — use port 8001 (already configured) |
+| `web3` import fails (`pkg_resources`) | Run: `pip install "web3>=6.0.0" --upgrade` |
+| Blockchain shows UNAVAILABLE | Start Hardhat: `npx hardhat node` then deploy: `npx hardhat run scripts/deploy.js --network localhost` |
+| Blockchain shows NOT_FOUND_ON_CHAIN | Old data pre-dates the fix — run `python clear_db.py` then `python simulate_events.py` |
+| tx_hash is null in MongoDB | Restart backend after Hardhat starts — it caches blockchain connection at startup |
+| `Assertion failed` after deploy | Harmless Node.js v25 / libuv bug on Windows — deploy still works |
 | 5000+ duplicate events | `python clear_db.py` then `python simulate_events.py` |
 | Explain shows "Log not found" | Refresh dashboard first — stale log IDs from old DB |
 | Explain shows 401 error | Invalid API key — check `ANTHROPIC_API_KEY` in `.env` |

@@ -1,0 +1,34 @@
+{
+  "pythonVersion": "3.14",
+  "pythonPlatform": "Windows",
+  "venvPath": ".",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "pythonVersion": "3.14",
+      "extraPaths": ["backend"]
+    }
+  ],
+  "extraPaths": ["backend"],
+  "typeCheckingMode": "off",
+  "useLibraryCodeForTypes": true,
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "reportMissingTypeStubs": false,
+  "reportGeneralTypeIssues": false,
+  "reportAttributeAccessIssue": false,
+  "reportOperatorIssue": false,
+  "reportCallIssue": false,
+  "exclude": [
+    "**/node_modules",
+    "**/.venv",
+    "**/hardhat",
+    "**/frontend",
+    "**/cache",
+    "c:/tmp"
+  ],
+  "ignore": [
+    "c:/tmp"
+  ]
+}

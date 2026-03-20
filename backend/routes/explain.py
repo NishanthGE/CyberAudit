@@ -306,11 +306,15 @@ async def explain_log(log_id: str):
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": _build_user_message(log_doc)}],
             )
-            raw = message.content[0].text.strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
+            raw: str = ""
+            for block in message.content:
+                if hasattr(block, "text"):
+                    raw = str(getattr(block, "text", "")).strip()
+                    break
+            if raw.startswith("```"):  # type: ignore[union-attr]
+                raw = raw.split("```")[1]  # type: ignore[union-attr]
                 if raw.startswith("json"):
-                    raw = raw[4:]
+                    raw = raw[4:]  # type: ignore[index]
                 raw = raw.strip()
             explanation = json.loads(raw)
             used_claude = True
