@@ -102,7 +102,7 @@ story += [
         ["Feature", "Status"],
         ["ML Anomaly Detection (Isolation Forest)",         "✅ Included"],
         ["Threat Classification (Random Forest)",           "✅ Included"],
-        ["Blockchain Integrity Verification",               "✅ Included"],
+        ["Blockchain Verifier (VERIFIED/TAMPERED)",         "✅ Fixed & Working"],
         ["LLM Threat Explanation (Claude + local fallback)","✅ NEW in v2.0"],
         ["Real-time Email + Slack Alert System",            "✅ NEW in v2.0"],
         ["Docker Containerization (docker-compose)",        "✅ NEW in v2.0"],
@@ -169,9 +169,10 @@ steps = [
     ("Step 3", "Threat Classification","Random Forest classifies: Normal / Probe / DoS / R2L / U2R with confidence %"),
     ("Step 4", "Risk Scoring",         "Combines threat label + anomaly score + event type + time of day → score 0–100"),
     ("Step 5", "Behavioral Profiling", "Compares event against user's historical baseline, flags deviations"),
-    ("Step 6", "Blockchain Hash",      "SHA-256 hash of the entire log document written to Ethereum smart contract"),
-    ("Step 7", "MongoDB Storage",      "Full log document saved to MongoDB"),
-    ("Step 8", "SSE Broadcast",        "Event pushed in real-time to all connected dashboard browsers"),
+    ("Step 6", "Alert Engine",         "Email + Slack alerts fired for qualifying events (severity/risk/anomaly thresholds)"),
+    ("Step 7", "MongoDB Storage",      "Full log document saved to MongoDB with tx_hash + block_number"),
+    ("Step 8", "Blockchain Hash",      "SHA-256 canonical hash written to Ethereum smart contract via storeLog(logId, hash, ...)"),
+    ("Step 9", "SSE Broadcast",        "Event pushed in real-time to all connected dashboard browsers"),
 ]
 for step, title, desc in steps:
     story.append(p(f"<b><font color='#00c8ff'>{step}</font> — {title}:</b> {desc}"))
@@ -234,19 +235,22 @@ story.append(sp())
 story += [h1("6. Why Blockchain? (The Core Innovation)"), hr()]
 story.append(p("The blockchain serves as an <b>immutable receipt printer</b>. When a log is saved:"))
 story.append(code(
-    "hash = SHA-256( entire log document JSON )\n"
-    "smart_contract.store(log_id, hash, risk_score, threat_label, timestamp)"
+    "# Canonical fields hashed (stable — excludes MongoDB-added fields like _id, tx_hash):\n"
+    "fields = user_id | source_ip | event_type | description | hour |\n"
+    "         threat_label | threat_confidence | is_anomaly | anomaly_score | risk_score | severity\n"
+    "hash = SHA-256( fields )\n"
+    "smart_contract.storeLog(log_id, hash, risk_score, threat_label, event_type, user_id)"
 ))
-story.append(p("The smart contract is deployed on Ethereum (local Hardhat node). Once written, "
-               "no admin password, no SQL query, no system-level access can alter it."))
+story.append(p("The <b>log_id</b> (MongoDB ObjectId string) is used as the on-chain key so verification "
+               "uses the same ID visible in the dashboard — no separate chain index needed."))
 story.append(sp())
 story.append(p("<b>Verification flow (Blockchain Verifier page):</b>"))
 for b in [
-    "User provides a Log ID",
-    "System fetches the current log from MongoDB and recomputes SHA-256",
-    "System fetches the original hash from the smart contract on-chain",
-    "If hashes match → ✅ VERIFIED (log is authentic)",
-    "If hashes differ → ❌ TAMPERED (log was modified after being saved)",
+    "User pastes a Log ObjectID (from Forensic Report or dashboard)",
+    "System fetches the current log from MongoDB and recomputes SHA-256 over canonical fields",
+    "System calls getLog(logId) on the smart contract to fetch the original stored hash",
+    "If hashes match → ✅ VERIFIED (log is authentic and unmodified)",
+    "If hashes differ → ❌ TAMPERED (log data was modified after being saved)",
 ]:
     story.append(bul(b))
 story.append(sp())
@@ -286,21 +290,29 @@ story.append(sp())
 
 # ─── 8. HOW TO START ──────────────────────────────────────────────────────────
 story += [h1("8. How to Start the Project"), hr()]
-story.append(sub("Open 3 CMD windows and run one command in each."))
+story.append(sub("Open 4 terminals. Hardhat must be running before starting the backend."))
 story.append(sp())
 
 cmds = [
-    ("CMD Terminal 1 — FastAPI Backend (required)",
-     "cd \"e:\\Blockchain project\\backend\"\nuvicorn main:app --reload --port 8000"),
-    ("CMD Terminal 2 — React Frontend (required)",
-     "cd \"e:\\Blockchain project\\frontend\"\nnpm run dev"),
-    ("CMD Terminal 3 — Seed Demo Data (first time only)",
-     "cd \"e:\\Blockchain project\\backend\"\npython simulate_events.py"),
+    ("Terminal 1 — Hardhat Blockchain Node (required first)",
+     'cd "e:\\Blockchain project"\nnpx hardhat node'),
+    ("Terminal 2 — Deploy Smart Contract (first time only)",
+     'cd "e:\\Blockchain project"\nnpx hardhat run scripts/deploy.js --network localhost'),
+    ("Terminal 3 — FastAPI Backend (required)",
+     'cd "e:\\Blockchain project\\backend"\npython -m uvicorn main:app --port 8001'),
+    ("Terminal 4 — React Frontend (required)",
+     'cd "e:\\Blockchain project\\frontend"\nnpm run dev'),
+    ("Terminal 5 — Seed Demo Data (first time only)",
+     'cd "e:\\Blockchain project\\backend"\npython simulate_events.py'),
 ]
 for title, cmd in cmds:
     story.append(h3(title))
     story.append(code(cmd))
     story.append(sp())
+
+story.append(p("<b>Note:</b> The backend runs on port <b>8001</b> (Windows Hyper-V/WinNAT reserves port 8000). "
+               "The Vite proxy in vite.config.js already targets http://localhost:8001."))
+story.append(sp())
 
 story.append(h3("Then open your browser:"))
 story.append(code("http://localhost:5173"))
@@ -312,7 +324,7 @@ story.append(p("MongoDB runs as a Windows service automatically. No separate com
 story.append(sp())
 
 story.append(h3("Clear and reset data:"))
-story.append(code("cd \"e:\\Blockchain project\\backend\"\npython clear_db.py\npython simulate_events.py"))
+story.append(code('cd "e:\\Blockchain project\\backend"\npython clear_db.py\npython simulate_events.py'))
 story.append(sp())
 
 story += [h2("8b. Run with Docker (One Command)"), hr()]
@@ -320,8 +332,8 @@ story.append(p("Requires Docker Desktop installed. Creates, links, and starts al
 story.append(code("docker-compose up --build"))
 for b in [
     "http://localhost:80 → CyberAudit dashboard (nginx)",
-    "http://localhost:8000 → FastAPI backend",
-    "http://localhost:8000/docs → Swagger API explorer",
+    "http://localhost:8001 → FastAPI backend (port 8001)",
+    "http://localhost:8001/docs → Swagger API explorer",
     "http://localhost:8545 → Hardhat blockchain RPC",
     "http://localhost:27017 → MongoDB",
 ]:
@@ -339,8 +351,8 @@ story.append(PageBreak())
 
 # ─── 9. API REFERENCE ─────────────────────────────────────────────────────────
 story += [h1("9. API Reference"), hr()]
-story.append(p("The backend runs at <b>http://localhost:8000</b>. "
-               "Full interactive docs at <b>http://localhost:8000/docs</b>"))
+story.append(p("The backend runs at <b>http://localhost:8001</b>. "
+               "Full interactive docs at <b>http://localhost:8001/docs</b>"))
 story.append(sp())
 api = [
     ["Method", "Endpoint", "Description"],
@@ -389,7 +401,7 @@ files = [
     ["frontend/src/pages/BlockchainVerifier.jsx","Log integrity verification UI"],
     ["frontend/src/pages/BehavioralProfiler.jsx","Per-user behavioral analysis UI"],
     ["frontend/src/pages/ForensicReport.jsx","Filtered log table + PDF export"],
-    ["frontend/vite.config.js",           "Vite config — proxies /api to localhost:8000"],
+    ["frontend/vite.config.js",           "Vite config — proxies /api to localhost:8001"],
 ]
 story.append(table(files, [7*cm, 9*cm]))
 story.append(sp())
@@ -402,7 +414,7 @@ story.append(code(
     "CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3\n"
     "MONGO_URI=mongodb://localhost:27017\n"
     "MONGO_DB=audit_log_db\n"
-    "BACKEND_PORT=8000"
+    "BACKEND_PORT=8001"
 ))
 story.append(sp())
 

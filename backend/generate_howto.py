@@ -118,19 +118,28 @@ story += [
 
 # ── STARTING THE SYSTEM ────────────────────────────────────────────────────────
 story += [h1("Part 1: Starting the System"), hr()]
-story.append(p("Every time you want to use CyberAudit, open <b>3 CMD windows</b> and run one command in each:"))
+story.append(p("Every time you want to use CyberAudit, open <b>5 terminals</b>. "
+               "Hardhat blockchain node must start first."))
 story.append(sp())
 
 start_steps = [
-    ("CMD Window 1", "Start the Python Backend",
-     "uvicorn main:app --reload --port 8000",
+    ("Terminal 1", "Start Hardhat Blockchain Node (required first)",
+     "npx hardhat node",
+     "e:\\Blockchain project",
+     "Starts local Ethereum node. Wait for 'Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545'"),
+    ("Terminal 2", "Deploy Smart Contract (first time only)",
+     "npx hardhat run scripts/deploy.js --network localhost",
+     "e:\\Blockchain project",
+     "Deploys AuditLog.sol. Wait for 'AuditLog deployed to: 0x5FbDB...'"),
+    ("Terminal 3", "Start the Python Backend",
+     "python -m uvicorn main:app --port 8001",
      "e:\\Blockchain project\\backend",
-     "Starts the AI + API server. Wait for 'Application startup complete.'"),
-    ("CMD Window 2", "Start the React Frontend",
+     "Starts the AI + API server. Wait for '[OK] Blockchain node connected' and 'Application startup complete.'"),
+    ("Terminal 4", "Start the React Frontend",
      "npm run dev",
      "e:\\Blockchain project\\frontend",
      "Starts the web UI. Shows 'Local: http://localhost:5173'."),
-    ("CMD Window 3", "Seed Demo Data (first time only)",
+    ("Terminal 5", "Seed Demo Data (first time only)",
      "python simulate_events.py",
      "e:\\Blockchain project\\backend",
      "Sends 220 realistic cybersecurity events. Wait for 'Done: 220 succeeded'."),
@@ -146,13 +155,14 @@ for win, title, cmd, cwd, desc in start_steps:
     ]))
 
 story.append(sp())
+story.append(tip("Backend runs on port 8001 (Windows reserves port 8000 for Hyper-V). The Vite frontend proxy is already configured for port 8001."))
 story.append(tip("MongoDB runs as a Windows service automatically — no separate command needed. If needed, use Admin CMD: net start MongoDB"))
 story.append(sp())
 story.append(h3("Then open your browser:"))
 story.append(cod("http://localhost:5173"))
 story.append(sp())
 story.append(h3("If you need to reset data (avoid duplicates):"))
-story.append(cod("cd \"e:\\Blockchain project\\backend\"\npython clear_db.py\npython simulate_events.py"))
+story.append(cod('cd "e:\\Blockchain project\\backend"\npython clear_db.py\npython simulate_events.py'))
 story.append(PageBreak())
 
 # ── PAGE 1: LIVE THREAT FEED ───────────────────────────────────────────────────
